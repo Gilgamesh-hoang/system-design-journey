@@ -24,3 +24,10 @@ Full roadmap, rationale, and interview questions per topic: `system-design-backe
 ## When helping with kata or flagship work
 
 Assume the goal is deep understanding for interviews, not just a working demo. Prefer explaining trade-offs over silently picking one, and flag when a "quick" implementation is skipping something a real interview answer would need to mention.
+
+## Proactive logging — do this without being asked
+
+- After finishing meaningful work on a kata or a flagship step (not every small edit — when a concept has actually been implemented or a real decision made), append a short entry to `learning-log.md` yourself, following the format already in that file. Don't wait to be told.
+- If the work involved a real trade-off (why Kafka over RabbitMQ, why this shard key, why CQRS here but not there — the kind of thing an interviewer would ask "why not X?" about), create a new ADR in `ridenow-app/docs/adr/` following the format in `0001-record-architecture-decisions.md`, and update `ridenow-app/README.md`'s "Current stage" / "Architecture snapshot" sections to match.
+- Mention what you logged/wrote at the end of your reply so it's visible, not silent.
+- This does NOT apply to theory-only discussion that happens in Cowork/Chat — Claude Code has no visibility into those sessions. The user (or the Cowork session, when asked) is responsible for logging theory takeaways into `learning-log.md`.
