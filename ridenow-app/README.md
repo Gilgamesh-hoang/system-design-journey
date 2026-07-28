@@ -9,6 +9,10 @@ Ride-hailing backend (Grab/Uber-style), built module by module alongside the Sys
 
 Update this section whenever the project moves to a new module — one line is enough (e.g. "M3 — added Redis cache-aside for driver info").
 
+## Milestone backlog
+
+Per-module specs (what to build, requirements, Definition of Done, ADR to write, mermaid diagram) live in `docs/milestones/` — one file per module, `M1`–`M8`. Read the milestone file **before** starting a module; check off its Definition of Done as you go. M0 is the paper design doc at `../design-docs/M0-ridenow-v1-design-doc.md`.
+
 ## Architecture snapshot
 
 _To be filled in once M0/M1 are underway: services (or lack thereof), datastores, and how they talk to each other. Keep this current — it's what you'll narrate in interviews._
