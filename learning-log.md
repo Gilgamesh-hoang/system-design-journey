@@ -52,3 +52,28 @@ Reverse-chronological log of theory-session takeaways (from Cowork/Chat). Writte
 - Decision: Áp dụng toàn bộ lý thuyết CAP Theorem và Caching để phác thảo kiến trúc MVP. (1) Vị trí GPS chọn AP + Redis để chịu tải 5000 QPS. (2) Thanh toán chọn CP + MySQL để đảm bảo không sai lệch. (3) Cơ chế báo kết quả chọn Short-Polling cho dễ code ở giai đoạn V1 (đánh đổi bằng tốn connection).
 - Tình trạng: Đã CHÍNH THỨC HOÀN THÀNH Module 0. Sẵn sàng bước sang Module 1: Communication & API Design.
 - Next: Bắt đầu Module 1 (HTTP, REST, Idempotency).
+
+## 2026-07-26 — M1: HTTP Method & Idempotency
+- Decision: Hiểu sự khác biệt khi dùng POST vs PUT/PATCH cho tracking vị trí tài xế. Dùng POST nếu muốn lưu lịch sử toàn bộ hành trình (Event logging). Dùng PUT/PATCH nếu chỉ quan tâm tới cập nhật vị trí hiện tại mới nhất (State update) vì nó Idempotent (không bị ảnh hưởng khi client retry do rớt mạng).
+- Trade-off: Lưu event (POST) tốn storage và phải tự xử lý duplicate data nếu mạng chập chờn. Cập nhật state (PUT) tiết kiệm tài nguyên và client không cần retry nhưng mất dữ liệu hành trình quá khứ (trong thực tế, hệ thống lớn dùng luồng stream riêng kết hợp Kafka).
+- Next: Áp dụng hiểu biết vào thực hành (Kata idempotency key).
+
+## 2026-07-26 — M1: Caching Overhead (Cache-Control & ETag)
+- Decision: Hiểu được với những dữ liệu siêu nhỏ và thay đổi liên tục (như toạ độ tài xế update mỗi 3s), không nên lạm dụng `no-cache` kết hợp ETag. Thay vào đó, dùng `no-store` để lấy data mới hoàn toàn, hoặc bỏ qua HTTP REST mà chuyển sang WebSockets/gRPC.
+- Trade-off: Dùng ETag để trả về 304 Not Modified giúp tiết kiệm bandwidth, nhưng với payload siêu nhỏ (vài bytes JSON), kích thước của HTTP Headers (chứa ETag) còn lớn hơn cả data. Việc Server phải mất công compute mã Hash mỗi 3s tạo ra chi phí tính toán (CPU overhead) vô ích thay vì đơn giản là gửi luôn data mới.
+- Next: Bắt tay vào làm Kata (Idempotency Key) để kết thúc Module 1.
+
+## 2026-07-26 — M1: TCP vs UDP (Khái niệm & Ứng dụng)
+- Decision: Phân biệt TCP (đảm bảo độ tin cậy, có connection) và UDP (nhanh, không cần connection, fire-and-forget). Trong System Design, TCP là mặc định cho HTTP/REST/DB, còn UDP dùng cho Streaming, Gaming hoặc bắn log/metric tần suất cao.
+- Trade-off: TCP tốn overhead (3-way handshake, header lớn 20 bytes) để đổi lấy sự toàn vẹn dữ liệu (không mất gói, đúng thứ tự). UDP có header cực nhỏ (8 bytes) và không tốn thời gian thiết lập kết nối, đổi lại dữ liệu có thể đến sai thứ tự hoặc mất luôn giữa đường mà không ai quan tâm (tuyệt vời cho bắn GPS mỗi giây vì mất 1 giây thì giây sau có toạ độ mới bù vào).
+- Next: Vận dụng kiến thức giao thức vào thiết kế API thực tế.
+
+## 2026-07-26 — M1: Idempotency Thực Chiến (Idempotency Key)
+- Decision: Hiểu luồng hoạt động của Idempotency Key bằng Redis. Khi Client thực hiện POST (không idempotent), bắt buộc gửi kèm header `Idempotency-Key` (UUID). Backend dùng Redis để lock key này lại (`IN_PROGRESS`), xử lý logic, rồi lưu lại kết quả (`COMPLETED`). Nếu Client gọi lại đúng key đó, Server trả luôn kết quả cũ mà không chạy lại logic kinh doanh.
+- Trade-off: Giúp giải quyết triệt để lỗi double-charge (trừ tiền 2 lần, tạo 2 cuốc xe) khi mạng chập chờn buộc client phải retry. Tuy nhiên, đổi lại Backend phải setup thêm Redis, tốn thêm 1 round-trip để check Redis trước khi đụng vào DB chính, và phải xử lý các edge cases (như payload khác nhau nhưng chung key).
+- Next: Code thực hành Kata (Idempotency Key bằng Java/Spring Boot + Redis).
+
+## 2026-07-26 — M1: gRPC vs GraphQL (và lỗi N+1)
+- Decision: (1) gRPC dùng cho giao tiếp Server-to-Server nhờ chuẩn Protobuf (nhị phân siêu nhẹ) và HTTP/2 (tốc độ cao). (2) GraphQL dùng cho giao tiếp Client-to-Server để giải quyết triệt để over-fetching/under-fetching của REST, giúp Frontend chủ động chọn field.
+- Trade-off: gRPC không thân thiện với Browser (khó debug bằng mắt). GraphQL thì dính lỗi chí mạng N+1 Query (1 query GraphQL gọi tới N query Database nếu thiết kế resolver ngây thơ), bắt buộc phải dùng công cụ như DataLoader để gom cụm (batch) truy vấn DB. GraphQL cũng làm cho việc Cache ở mức Network (CDN) trở nên vô dụng do mọi request đều dùng phương thức POST vào chung 1 URL.
+- Next: Củng cố lý thuyết API và chuẩn bị làm phần thực hành cuối module.

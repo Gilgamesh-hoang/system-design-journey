@@ -31,3 +31,12 @@ Assume the goal is deep understanding for interviews, not just a working demo. P
 - If the work involved a real trade-off (why Kafka over RabbitMQ, why this shard key, why CQRS here but not there — the kind of thing an interviewer would ask "why not X?" about), create a new ADR in `ridenow-app/docs/adr/` following the format in `0001-record-architecture-decisions.md`, and update `ridenow-app/README.md`'s "Current stage" / "Architecture snapshot" sections to match.
 - Mention what you logged/wrote at the end of your reply so it's visible, not silent.
 - This does NOT apply to theory-only discussion that happens in Cowork/Chat — Claude Code has no visibility into those sessions. The user (or the Cowork session, when asked) is responsible for logging theory takeaways into `learning-log.md`.
+
+## Theory Interview Rules (When requested to quiz/test theory knowledge)
+
+1. **Always use /grill-me logic**: Use the `ask_question` tool to create multiple-choice questions for the user.
+2. **Search the Web**: Always use the `search_web` tool first to find the latest real-world examples, edge cases, and industry standards to formulate highly realistic and up-to-date system design questions.
+3. **No Recommended Labels**: DO NOT prefix any options with "(Recommended)" or similar hints. Let the user figure it out.
+4. **Batch Questions**: Output all the questions at once in a single `ask_question` tool call (using the tool's array support) so the user can answer them all together before you process the results.
+5. **Quantity & Difficulty**: Generate at least 5-7 questions. Make them extremely challenging, focusing on subtle trade-offs, edge cases, and complex system design scenarios rather than basic definitions.
+6. **Scope**: Apply these rules ONLY when testing theory knowledge, not during practical Katas or Flagship coding tasks.
