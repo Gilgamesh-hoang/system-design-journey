@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Idempotency Key Demo — POST /rides</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    max-width: 880px;
+    margin: 2.5rem auto;
+    padding: 0 1.25rem 4rem;
+    line-height: 1.5;
+    color: #1a1a1a;
+    background: #f7f7f8;
+  }
+  h1 { font-size: 1.5rem; margin-bottom: .25rem; }
+  h1 code { font-size: 1.1rem; background: #e5e5ea; padding: .1rem .4rem; border-radius: 6px; }
+  .subtitle { color: #55555a; margin-top: 0; margin-bottom: 1.5rem; }
+  .subtitle code { background: #e5e5ea; padding: .1rem .35rem; border-radius: 4px; }
+
+  .card {
+    background: #fff;
+    border: 1px solid #dcdce0;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .card-title { font-weight: 600; font-size: .95rem; margin-bottom: 1rem; color: #333; }
+
+  label { display: block; font-size: .8rem; font-weight: 600; color: #55555a; margin-top: 1rem; }
+  label:first-of-type { margin-top: 0; }
+  input {
+    width: 100%; margin-top: .35rem; padding: .6rem .7rem;
+    font-size: 1rem; border: 1px solid #c9c9cf; border-radius: 8px;
+    background: #fbfbfc; color: inherit;
+  }
+  input:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
+  .key-row { display: flex; gap: .6rem; align-items: flex-end; margin-top: 1rem; }
+  .key-row > div { flex: 1; }
+  .key-row label { margin-top: 0; }
+
+  button {
+    cursor: pointer; padding: .65rem 1rem; border-radius: 8px;
+    border: 1px solid transparent; font-size: .9rem; font-weight: 600;
+    background: #4f46e5; color: #fff; transition: opacity .1s;
+  }
+  button:hover { opacity: .88; }
+  button.secondary { background: #fff; color: #333; border-color: #c9c9cf; }
+  .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1.5rem; }
+
+  .log-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .75rem; }
+  .log-header h2 { font-size: 1rem; margin: 0; }
+  .log-empty { color: #888; font-size: .9rem; padding: 1rem 0; }
+
+  #log { display: flex; flex-direction: column-reverse; gap: .9rem; }
+  .entry { background: #fff; border: 1px solid #dcdce0; border-left-width: 5px; border-radius: 10px; padding: 1rem 1.1rem; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .entry .meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; align-items: center; margin-bottom: .75rem; font-size: .82rem; color: #55555a; }
+  .badge { display: inline-flex; align-items: center; padding: .2rem .55rem; border-radius: 999px; font-weight: 700; font-size: .78rem; color: #fff; }
+  .key-tag { font-family: ui-monospace, monospace; background: #eeeef2; padding: .15rem .5rem; border-radius: 6px; }
+
+  .status-2xx { border-left-color: #16a34a; }
+  .status-2xx .badge { background: #16a34a; }
+  .status-409 { border-left-color: #d97706; }
+  .status-409 .badge { background: #d97706; }
+  .status-400 { border-left-color: #dc2626; }
+  .status-400 .badge { background: #dc2626; }
+  .status-err { border-left-color: #6b7280; }
+  .status-err .badge { background: #6b7280; }
+
+  .block-label { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #888; margin: .6rem 0 .3rem; }
+  .block-label:first-of-type { margin-top: 0; }
+  pre {
+    margin: 0; padding: .6rem .75rem; border-radius: 8px; background: #f4f4f6;
+    font-family: ui-monospace, "SF Mono", monospace; font-size: .82rem; line-height: 1.45;
+    white-space: pre-wrap; word-break: break-word; overflow-x: auto;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body { background: #17171a; color: #eaeaea; }
+    h1 code, .subtitle code { background: #2a2a2f; }
+    .subtitle { color: #a0a0a8; }
+    .card, .entry { background: #1f1f24; border-color: #33333a; }
+    .card-title { color: #d8d8dc; }
+    label { color: #a0a0a8; }
+    input { background: #17171a; border-color: #3a3a42; color: #eaeaea; }
+    button.secondary { background: #1f1f24; color: #eaeaea; border-color: #3a3a42; }
+    .entry .meta { color: #a0a0a8; }
+    .key-tag { background: #2a2a2f; }
+    pre { background: #17171a; color: #eaeaea; }
+    .block-label { color: #8a8a92; }
+    .log-empty { color: #8a8a92; }
+  }
+</style>
+</head>
+<body>
+  <h1>Idempotency Key Demo — <code>POST /rides</code></h1>
+  <p class="subtitle">Trang test thủ công cho kata M1-01. Mỗi nút mô phỏng một tình huống trong <code>NOTES.md</code>.</p>
+
+  <div class="card">
+    <div class="card-title">Request body</div>
+    <label>Pickup <input id="pickup" value="Ben Thanh"></label>
+    <label>Dropoff <input id="dropoff" value="Tan Son Nhat"></label>
+    <div class="key-row">
+      <div>
+        <label>Idempotency-Key <input id="idemKey"></label>
+      </div>
+      <button class="secondary" onclick="newKey()">New key</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button onclick="sendOnce()">Send request</button>
+    <button onclick="sendOnce()">Resend same key + same body</button>
+    <button onclick="sendDifferentBody()">Resend same key, different body</button>
+    <button class="secondary" onclick="sendWithoutKey()">Send without Idempotency-Key</button>
+    <button class="secondary" onclick="sendConcurrent()">Fire 5 concurrent (same key)</button>
+    <button class="secondary" onclick="clearLog()">Clear log</button>
+  </div>
+
+  <div class="log-header">
+    <h2>Log</h2>
+  </div>
+  <div id="log"></div>
+  <p class="log-empty" id="logEmpty">Chưa có request nào — bấm một nút phía trên để bắt đầu.</p>
+
+<script>
+function newKey() {
+  document.getElementById('idemKey').value = crypto.randomUUID();
+}
+newKey();
+
+function currentBody() {
+  return {
+    pickup: document.getElementById('pickup').value,
+    dropoff: document.getElementById('dropoff').value
+  };
+}
+
+async function post(key, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (key) headers['Idempotency-Key'] = key;
+  const started = performance.now();
+  try {
+    const res = await fetch('/rides', { method: 'POST', headers, body: JSON.stringify(body) });
+    const text = await res.text();
+    logEntry(res.status, key, body, text, performance.now() - started);
+  } catch (e) {
+    logEntry(null, key, body, String(e), performance.now() - started);
+  }
+}
+
+function sendOnce() {
+  post(document.getElementById('idemKey').value, currentBody());
+}
+
+function sendDifferentBody() {
+  post(document.getElementById('idemKey').value, { pickup: 'Different pickup', dropoff: 'Different dropoff' });
+}
+
+function sendWithoutKey() {
+  post(null, currentBody());
+}
+
+function sendConcurrent() {
+  const key = document.getElementById('idemKey').value;
+  const body = currentBody();
+  for (let i = 0; i < 5; i++) post(key, body);
+}
+
+function prettyJson(text) {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    return text;
+  }
+}
+
+function logEntry(status, key, body, responseText, ms) {
+  document.getElementById('logEmpty').style.display = 'none';
+  const div = document.createElement('div');
+  const cls = status === null ? 'status-err'
+    : status === 409 ? 'status-409'
+    : status === 400 ? 'status-400'
+    : (status >= 200 && status < 300) ? 'status-2xx' : 'status-err';
+  div.className = 'entry ' + cls;
+  const time = new Date().toLocaleTimeString();
+  const shortKey = key ? key.slice(0, 8) + '…' : '(missing)';
+  div.innerHTML =
+    `<div class="meta">` +
+      `<span><span class="badge">${status ?? 'ERR'}</span> &nbsp;${time} · ${Math.round(ms)}ms</span>` +
+      `<span class="key-tag">key=${shortKey}</span>` +
+    `</div>` +
+    `<div class="block-label">Request</div><pre>${escapeHtml(prettyJson(JSON.stringify(body)))}</pre>` +
+    `<div class="block-label">Response</div><pre>${escapeHtml(prettyJson(responseText))}</pre>`;
+  document.getElementById('log').appendChild(div);
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
+function clearLog() {
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('logEmpty').style.display = 'block';
+}
+</script>
+</body>
+</html>

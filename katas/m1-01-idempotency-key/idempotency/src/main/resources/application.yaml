@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: idempotency
+
+redis:
+  password: ${REDIS_MASTER_PASSWORD:root}
+  master:
+    host: ${REDIS_MASTER_HOST:localhost}
+    port: ${REDIS_MASTER_PORT:6379}

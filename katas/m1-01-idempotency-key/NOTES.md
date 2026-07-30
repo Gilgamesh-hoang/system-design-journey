@@ -51,6 +51,19 @@ Thiết kế được cơ chế **idempotency key**: cùng một key gửi lại
 - "Lưu idempotency record trong Redis hay DB — đánh đổi gì?"
 
 ## 8. Ghi chú của tôi *(điền sau khi làm)*
-- **Approach thực tế:**
-- **Kết quả đo / quan sát:**
+- **Approach thực tế:** Spring Boot (`POST /rides`) + Redis, SETNX (`opsForValue().setIfAbsent(key, value, ttl)`) làm cơ chế "nhận chỗ" atomic. Mỗi idempotency key map tới 1 Redis key (`idem:rides:<key>`, TTL 24h) chứa JSON `{state, bodyHash, status, body}`.
+  - `begin(key, bodyHash)`: SETNX record `IN_PROGRESS`. Acquire được → request đầu, cho xử lý. Acquire thất bại → đọc record cũ: hash khác → 409 (key bị tái sử dụng với body khác); hash giống mà state `DONE` → replay đúng status/body cũ; state vẫn `IN_PROGRESS` → 409 "đang xử lý, thử lại sau" (đúng gợi ý #3 trong NOTES, không coi là "chưa có key").
+  - `complete(key, bodyHash, status, body)`: ghi đè record thành `DONE` sau khi tạo ride xong.
+  - Nếu logic tạo ride throw exception, key bị `release()` (xoá) ngay để request retry kế tiếp không phải chờ hết TTL 24h.
+  - Thiếu header `Idempotency-Key` → 400 trước khi chạm Redis.
+- **Kết quả đo / quan sát:** 4 test tích hợp (`IdempotencyIT`, dùng HTTP thật qua `RestTestClient` + Redis thật trong container Docker, không mock):
+  1. `sameKeyTenTimes...`: POST cùng key 10 lần → đúng **1** ride trong `RideService`, cả 10 response giống hệt nhau (status + body).
+  2. `concurrentRequestsSameKey...`: 8 thread bắn đồng thời cùng key (đồng bộ qua `CountDownLatch`) → sau khi tất cả xong, `RideService` tăng đúng **+1** ride — chứng minh SETNX chặn được race, không phải chỉ "check rồi insert".
+  3. `sameKeyDifferentBody...`: cùng key, body khác → request thứ 2 nhận `409 Conflict`, không ghi đè kết quả cũ.
+  4. `missingIdempotencyKey...`: thiếu header → `400 Bad Request`.
+  - Cả 4 test pass (`./gradlew test`, xem `build/test-results/test/*.xml`, `tests="4" failures="0"`).
 - **Bài học / điều bất ngờ:**
+  - Chỉ "GET rồi mới SET" không đủ atomic — 2 request lọt qua "chưa thấy key" cùng lúc vẫn tạo trùng. Phải dùng lệnh atomic 1 bước của hạ tầng (SETNX/`SET NX EX` hoặc `UNIQUE` constraint), app code không tự đảm bảo được.
+  - Trạng thái "đang xử lý" (`IN_PROGRESS`) là bẫy dễ bỏ sót: nếu coi "có key nhưng chưa DONE" như "chưa có key" thì vẫn tạo trùng khi request 2 tới trong lúc request 1 chưa kịp ghi kết quả.
+  - Redis SETNX không tự transaction cùng việc tạo ride — nếu process chết giữa "acquire" và "complete", key kẹt ở `IN_PROGRESS` tới khi TTL hết hoặc tới khi có `release()` khi catch exception; đây là đánh đổi so với dùng DB (ghi idempotency record cùng transaction với insert ride thì nhất quán hơn nhưng chậm hơn/phức tạp hơn để scale).
+  - Bất ngờ về tooling: Spring Boot 4 đổi Jackson sang groupId `tools.jackson` (import `tools.jackson.databind.ObjectMapper` thay vì `com.fasterxml.jackson.databind`), và `TestRestTemplate` bị thay bằng `org.springframework.test.web.servlet.client.RestTestClient` (kiểu builder giống `WebTestClient`). Testcontainers 1.21.3 (docker-java) không bắt tay được với Docker Desktop version rất mới trên máy — phải tự start container Redis qua `docker` CLI (`ProcessBuilder`) + `@DynamicPropertySource` thay vì `@Testcontainers`/`@ServiceConnection`.
