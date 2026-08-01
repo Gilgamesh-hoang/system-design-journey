@@ -1,4 +1,4 @@
-# M2-03: N+1 Query & Indexing — phát hiện và sửa bằng EXPLAIN
+# M2-01: N+1 Query & Indexing — phát hiện và sửa bằng EXPLAIN
 
 > **Module:** M2 — Databases
 > **Concept:** Đọc EXPLAIN, diệt N+1 trong JPA/Hibernate, thêm index đúng chỗ.

@@ -1,4 +1,4 @@
-# M2-01: Master-Slave Replication + Read Replica (Docker Compose)
+# M2-02: Master-Slave Replication + Read Replica (Docker Compose)
 
 > **Module:** M2 — Databases
 > **Concept:** Tách đọc/ghi qua read replica; quan sát replication lag & read-your-write.

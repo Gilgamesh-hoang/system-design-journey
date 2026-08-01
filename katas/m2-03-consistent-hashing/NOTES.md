@@ -1,4 +1,4 @@
-# M2-02: Consistent Hashing + Virtual Nodes (tự viết bằng Java)
+# M2-03: Consistent Hashing + Virtual Nodes (tự viết bằng Java)
 
 > **Module:** M2 — Databases
 > **Concept:** Phân phối key qua N node sao cho thêm/bớt node chỉ xáo trộn tối thiểu.
