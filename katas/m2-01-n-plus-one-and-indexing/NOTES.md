@@ -35,16 +35,17 @@
 2. Index: thử **composite index** đúng thứ tự cột theo mệnh đề WHERE + ORDER BY; thử **covering index** để tránh truy bảng.
 3. Luôn `EXPLAIN ANALYZE` (không chỉ `EXPLAIN`) để có thời gian thật + số rows thật.
 
-## 6. Bẫy & Trade-off phải giải thích được
+## 6. Bẫy & Trade-off (Liên hệ DDIA - Chương 3)
 - N+1 ẩn: `FetchType.EAGER` global "trông như" hết N+1 nhưng lại nạp thừa (extraneous fetching) — dự án cấm EAGER, dùng `@EntityGraph` per-query.
-- Index tăng tốc **đọc** nhưng làm **chậm ghi** + tốn dung lượng → không index bừa.
+- Index tăng tốc **đọc** nhưng làm **chậm ghi** + tốn dung lượng (Trade-off cơ bản của Storage Engine).
+- **B-Tree vs LSM-Tree:** PostgreSQL dùng B-Tree, tối ưu cho đọc ngẫu nhiên (random access) và range queries. Tuy nhiên nó sẽ chậm nếu write quá nhiều (do page split). (Đây là điểm cộng lớn nếu nhắc đến khi phỏng vấn).
 - Thứ tự cột trong composite index quyết định nó có được dùng cho query không (leftmost prefix).
 - Keyset pagination vs `OFFSET` lớn — OFFSET lớn vẫn quét bỏ hàng triệu dòng.
 
 ## 7. Câu hỏi phỏng vấn liên quan
 - "Query này chậm, bạn debug thế nào?" (→ EXPLAIN → index/N+1)
 - "N+1 là gì, phát hiện và sửa trong Hibernate ra sao?"
-- "Khi nào index KHÔNG được dùng?"
+- "Vì sao thêm Index lại làm chậm quá trình Write? Sự khác biệt giữa B-Tree (SQL) và LSM-Tree (NoSQL)?"
 - "Composite index: thứ tự cột có quan trọng không? Vì sao?"
 
 ## 8. Ghi chú của tôi *(điền sau khi làm)*

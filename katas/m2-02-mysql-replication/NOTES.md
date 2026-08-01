@@ -36,17 +36,19 @@ Dựng được cụm **1 master + 1 slave** bằng Docker Compose, định tuy�
 2. Muốn **phóng đại lag** để dễ quan sát: thêm `recovery_min_apply_delay` (Postgres) hoặc nhét tải ghi lớn vào master.
 3. Kịch bản stale read: trong 1 vòng lặp, ghi 1 row rồi lập tức đọc trên replica; in ra "có/chưa có".
 
-## 6. Bẫy & Trade-off phải giải thích được
-- **Async replication** (mặc định): master không chờ slave → nhanh, nhưng slave trễ → stale read + rủi ro mất data nếu master chết trước khi replicate. **Sync**: an toàn hơn, chậm hơn.
-- **Read-your-write fix:** đọc từ master cho user vừa ghi (sticky), hoặc chờ tới khi replica bắt kịp LSN.
+## 6. Bẫy & Trade-off (Liên hệ DDIA - Chương 5)
+- **Async replication** (mặc định): master không chờ slave → nhanh, nhưng slave trễ → rủi ro mất data nếu master chết trước khi replicate. **Sync**: an toàn hơn, nhưng một node slave chết có thể kéo sập hệ thống (chặn write). Giải pháp thực tế thường là Semi-synchronous.
+- **Replication Lag Anomalies:** 
+  - Đọc lại dữ liệu vừa ghi nhưng không thấy (Giải pháp: **Read-your-write consistency**).
+  - Thấy dữ liệu đi lùi thời gian (Giải pháp: **Monotonic reads**).
+  - Vi phạm quan hệ nhân quả (Giải pháp: **Consistent prefix reads**).
 - Replica **không** giúp scale ghi — chỉ scale đọc. Đây là bẫy phỏng vấn hay gặp.
-- Read replica là bước **trước** sharding trong thang giải pháp.
 
 ## 7. Câu hỏi phỏng vấn liên quan
-- "Read replica gây ra vấn đề gì về consistency? Read-your-write là gì, sửa sao?"
-- "Phân biệt replication vs sharding vs partitioning vs federation."
-- "Sync vs async replication — đánh đổi?"
-- "Khi nào read replica hết tác dụng và bạn phải shard?"
+- "Read replica gây ra vấn đề gì về consistency? Kể tên 3 hiện tượng phổ biến do Replication Lag (như Read-your-write) và cách khắc phục?"
+- "Phân biệt Single-leader, Multi-leader và Leaderless replication. Khi nào dùng Multi-leader?"
+- "Sync vs async replication — đánh đổi? Nếu dùng Async mà Master chết thì sao?"
+- "Khi nào read replica hết tác dụng và bạn phải Partitioning (Shard)?"
 
 ## 8. Ghi chú của tôi *(điền sau khi làm)*
 - **Approach thực tế:**

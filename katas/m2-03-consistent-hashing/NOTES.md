@@ -35,17 +35,18 @@ Tự cài **vòng hash** + **virtual nodes** bằng Java, và **chứng minh b�
 2. `getNode(key)`: `ring.ceilingEntry(hash(key))`, nếu null thì `firstEntry` (vòng qua 0).
 3. Đo rebalance: snapshot map key→node trước và sau khi add/remove, đếm số key đổi chủ.
 
-## 6. Bẫy & Trade-off phải giải thích được
-- **Không có virtual nodes → tải lệch** nặng (node "may mắn" ôm cung lớn). Vnode là mấu chốt, không phải chi tiết phụ.
-- V lớn → phân phối đều hơn nhưng tốn bộ nhớ ring + tra cứu chậm hơn.
-- Consistent hashing giải bài **rebalance**, không giải bài **hot key** (1 key nóng vẫn dồn 1 node).
-- Đây là nền của Redis Cluster, Cassandra, DynamoDB partitioning.
+## 6. Bẫy & Trade-off (Liên hệ DDIA - Chương 6)
+- **Hash Partitioning vs Range Partitioning:** Hash giúp rải data đều (chống Hot Spot), nhưng đánh đổi là **mất khả năng Range Query** (query theo khoảng). Range query thì ngược lại.
+- **Không có virtual nodes → tải lệch** nặng (node "may mắn" ôm cung lớn). Vnode là mấu chốt, không phải chi tiết phụ. V lớn → phân phối đều hơn nhưng tốn bộ nhớ ring + tra cứu chậm hơn.
+- Khả năng Rebalancing: Khi scale up/down, ta muốn lượng dữ liệu phải chuyển mạng là tối thiểu. (Fixed number of partitions vs Dynamic partitioning).
+- Lỗi kinh điển: Hot Partition do **lựa chọn Shard Key sai** (ví dụ: Shard theo ngày tháng, dẫn đến data hôm nay dồn toàn bộ vào 1 node).
 
 ## 7. Câu hỏi phỏng vấn liên quan
-- "Consistent hashing giải quyết vấn đề gì so với `hash % N`?"
+- "Làm sao để Partitioning dữ liệu? Đánh đổi giữa Key Range và Key Hash là gì?"
+- "Consistent hashing giải quyết vấn đề gì so với `hash % N` truyền thống?"
 - "Virtual node để làm gì? Bỏ đi thì sao?"
-- "Consistent hashing có chống được hot partition không?"
-- "Thêm 1 node thì bao nhiêu % key phải di chuyển?"
+- "Thêm 1 node thì bao nhiêu % key phải di chuyển trong Consistent Hashing?"
+- "Làm sao để xử lý Hot Spots hoặc Skewed Workloads khi một ID có quá nhiều request?"
 
 ## 8. Ghi chú của tôi *(điền sau khi làm)*
 - **Approach thực tế:**
