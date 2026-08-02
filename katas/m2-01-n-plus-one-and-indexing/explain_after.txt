@@ -1,0 +1,11 @@
+                                                              QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on trips  (cost=5530.48..28911.98 rows=494200 width=38) (actual time=6.829..68.182 rows=501385 loops=1)
+   Recheck Cond: ((status)::text = 'COMPLETED'::text)
+   Heap Blocks: exact=17204
+   ->  Bitmap Index Scan on idx_trips_status  (cost=0.00..5406.93 rows=494200 width=0) (actual time=5.493..5.494 rows=501385 loops=1)
+         Index Cond: ((status)::text = 'COMPLETED'::text)
+ Planning Time: 0.224 ms
+ Execution Time: 76.041 ms
+(7 rows)
+

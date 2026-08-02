@@ -49,6 +49,15 @@
 - "Composite index: thứ tự cột có quan trọng không? Vì sao?"
 
 ## 8. Ghi chú của tôi *(điền sau khi làm)*
-- **Approach thực tế:**
+- **Approach thực tế:** 
+  - Khởi tạo dự án Spring Boot với PostgreSQL. Dùng Docker Compose dựng DB.
+  - Sử dụng Python sinh ra `drivers.csv` (10k) và `trips.csv` (2M) và load vào DB thông qua lệnh `\COPY` để đảm bảo tốc độ cực nhanh (thay vì dùng Hibernate `saveAll()`).
+  - Cấu hình Hibernate Statistics `generate_statistics=true` và bật log SQL.
+  - Chữa N+1 Query bằng cách thêm method `@EntityGraph(attributePaths = {"driver"})` vào Repository.
 - **Kết quả đo (query count, latency, EXPLAIN trước/sau):**
+  - **N+1:** API `/api/test/n-plus-one` (gọi 100 chuyến xe) sinh ra 1 query CHA và 100 query CON. Sau khi đổi sang API `/api/test/n-plus-one/fixed`, số query giảm xuống đúng **1 query duy nhất** (dùng LEFT JOIN).
+  - **Index:** `EXPLAIN ANALYZE SELECT * FROM trips WHERE status = 'COMPLETED'`
+    - *Trước:* `Seq Scan` tốn 98ms. Postgres phải đọc tất cả 2 triệu dòng và loại bỏ đi 1.5 triệu dòng không khớp (`Rows Removed by Filter: 1498615`).
+    - *Sau (thêm `idx_trips_status`):* Chuyển thành `Bitmap Index Scan`. Tốc độ giảm xuống 76ms (không quá lệch vì bảng vẫn đang nằm trên RAM của Docker và Seq Scan chạy ngầm khá mạnh), nhưng quan trọng nhất là Engine **đã không còn quét toàn bảng nữa** mà chỉ fetch đúng số lượng index tương ứng.
 - **Bài học / điều bất ngờ:**
+  - Nếu số rows trả về từ Index Scan chiếm tỉ lệ quá lớn trong bảng (ở đây `COMPLETED` chiếm ~25%), Optimizer của Postgres có thể chọn `Bitmap Index Scan` thay vì `Index Scan` hoặc thậm chí rớt lại về `Seq Scan` (nếu chiếm 50%+) vì việc nhảy ngẫu nhiên trên Heap Page có khi còn chậm hơn đọc tuần tự toàn bộ Data Page. Do đó Index chỉ thực sự ảo diệu với các data có tính chọn lọc cao (High Selectivity)!

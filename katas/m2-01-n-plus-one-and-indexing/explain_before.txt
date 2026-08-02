@@ -1,0 +1,9 @@
+                                                  QUERY PLAN                                                   
+---------------------------------------------------------------------------------------------------------------
+ Seq Scan on trips  (cost=0.00..42204.00 rows=494200 width=38) (actual time=0.028..89.108 rows=501385 loops=1)
+   Filter: ((status)::text = 'COMPLETED'::text)
+   Rows Removed by Filter: 1498615
+ Planning Time: 0.229 ms
+ Execution Time: 98.696 ms
+(5 rows)
+
