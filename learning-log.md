@@ -88,3 +88,48 @@ Reverse-chronological log of theory-session takeaways (from Cowork/Chat). Writte
 - Decision: Hiện thực Kata M2-01 để hiểu sâu về 2 vấn đề lớn nhất của ORM/Database. Sử dụng lệnh `COPY` để nạp 2 triệu dòng cực nhanh thay vì Hibernate `save()`. Dùng `@EntityGraph` (tránh FetchType.EAGER global) để sửa dứt điểm N+1 query bằng LEFT JOIN. Sử dụng `EXPLAIN ANALYZE` để quan sát `Seq Scan` và `Bitmap Index Scan`.
 - Trade-off: Dùng Index Scan giúp truy vấn cực nhanh nhưng nếu select ra quá nhiều dòng, việc "nhảy cóc" trên Heap Page đôi khi còn chậm hơn quét tuần tự (`Seq Scan`) toàn bộ Data Page, nên Index chỉ thực sự hiệu quả với dữ liệu có tính High Selectivity.
 - Next: Bước sang Kata tiếp theo về Database Replication (M2-02) hoặc tiến lên xây dựng kiến trúc mới cho Flagship RideNow.
+
+## 2026-08-04 — M2: Thực hành Kata M2-01
+- Decision: Diệt N+1 Query bằng `@EntityGraph` và tối ưu quét bảng bằng Index trong Spring Boot + Postgres.
+- Trade-off: Dùng `@EntityGraph` giúp giải quyết N+1 hiệu quả, nhưng nếu join quá nhiều bảng (Cartesian Product) có thể làm memory bloat. Index giúp Read nhanh hơn nhưng gây Write Amplification.
+- Next: Học lý thuyết về Transactions & ACID.
+
+## 2026-08-04 — M2: Isolation Levels & Lost Updates
+- Decision: Hiểu rõ 3 mức cô lập (Read Committed, Snapshot Isolation, Serializability). Quyết định xử lý thao tác chuyển tiền (ví dụ: A trừ, B cộng) bằng `Atomic Update` (hoặc `SELECT FOR UPDATE`) ở mức `Read Committed` thay vì bật `Serializability`.
+- Trade-off: Dùng Row-level lock (`Atomic Update`) giúp giải quyết hoàn hảo bài toán *Lost Update* trên các dòng rời rạc mà vẫn giữ được tốc độ cực cao, tránh thắt cổ chai so với 2-Phase Locking của Serializability. Chỉ dùng Serializability khi gặp *Write Skew* (đọc A làm tiền đề để ghi B).
+- Next: Thực hành giải quyết các bài toán Concurrency / hoặc đi tiếp lý thuyết Replication & Partitioning.
+
+## 2026-08-08 — M3: Partitioning & Sharding (Range vs Hash)
+- Decision: Dùng Range Partitioning cho các bài toán lấy dữ liệu theo dải thời gian liên tục nhưng cẩn thận Hot Spot. Dùng Hash Partitioning để dàn đều tải nhưng chấp nhận mất khả năng Range Scan.
+- Trade-off: (1) Tránh Hot Spot bằng Salting ở tầng App giúp ghi nhanh nhưng đọc chậm. (2) Tránh chia dư cho số Node (`hash % N`) vì khi scale mạng sẽ sập; thay vào đó định nghĩa số lượng Phân vùng cố định (Fixed Partitions) để di chuyển dữ liệu ở mức tối thiểu.
+- Next: Thực hành cấu hình Rebalancing hoặc đi tiếp lý thuyết Chặng 4 (Hệ thống phân tán & CAP).
+
+## 2026-08-09 � M4: Unreliable Networks, Clocks & Process Pauses
+- Decision: Hi?u b?n ch?t c�c r?i ro h? th?ng ph�n t�n. M?ng truy?n tin kh�ng c� d? tr? gi?i h?n (Unbounded delays) d?n d?n Timeout kh�ng lu?ng tru?c (k�ch ho?t False Positive). �?ng h? v?t l� l?ch nh?p l�m sai l?ch gi?i thu?t LWW (Last-Write-Wins) g�y m?t d? li?u. Ti?n tr�nh b? d�ng bang (GC Pause) cu?p CPU l�m d? li?u b? ghi d� khi t?nh d?y.
+- Trade-off: (1) Thay v� d�ng Timeout c?ng, d�ng Phi Accrual Failure Detector h?c theo bi?n d?ng c?a m?ng. (2) Thay v� tin d?ng h? NTP, d�ng Google TrueTime (Kho?ng th?i gian) ho?c Logical Clocks. (3) D�ng Fencing Tokens (tang d?n don di?u) ch?n Zombie Process ghi file b?y b? thay v� ch? d?a v�o Lease/Lock th�ng thu?ng.
+- Next: �i ti?p l� thuy?t CAP Theorem ho?c th?c h�nh x? l� l?i m?ng/kh�a.
+
+## 2026-08-09 � M4: Th?c h�nh Kata M4-02 (Fencing Tokens)
+- Decision: D�ng bi?n AtomicLong sinh Token don di?u trong Lock Service v� bi?n luu Token cao nh?t t?i Storage Service d? block c�c Zombie Client.
+- Trade-off: Storage b?t bu?c ph?i "th�ng minh" v� tham gia v�o qu� tr�nh check Token (Active Validation) thay v� ch? nh?m m?t ghi data. �i?u n�y d�i h?i Storage Service (v� d? HDFS, S3, ho?c DB) ph?i h? tr? truy?n v� ki?m tra fencing token, ho?c ph?i nh�ng token v�o t�n file. N?u d�ng DB, c� th? d�ng c�u l?nh UPDATE ... WHERE token < :newToken.
+- Next: Ti?p t?c l� thuy?t CAP Theorem.
+
+## 2026-08-09 � M4: L� thuy?t CAP Theorem (S? th?t v? CAP)
+- Decision: D?p b? d?nh nghia cu "ch?n 2 trong 3". Hi?u d�ng d?nh l� CAP: Partition (P) l� quy lu?t v?t l� b?t bu?c ph?i x?y ra (d?t c�p, r?t m?ng, treo switch). Khi x?y ra P, h? th?ng ch? du?c ch?n C (d?ng ph?c v? d? d?m b?o nh?t qu�n) ho?c A (ti?p t?c ph?c v? nhung ch?p nh?n d? li?u sai/cu).
+- Trade-off: Trong th?c t?, l� do ch�nh m� c�c h? th?ng d�nh d?i C (Linearizability) kh�ng ph?i l� v� s? P (d?t m?ng), m� l� v� t?c d? (Latency). Thu?t to�n d?m b?o t�nh C lu�n lu�n ch?m. Vi?c l?a ch?n AP (nhu Cassandra) b?n ch?t l� d�nh d?i s? nh?t qu�n tuy?t d?i d? l?y t?c d? v�i mili-gi�y.
+- Next: K?t th�c Ch?ng 4. Chu?n b? b�i Test.
+
+## 2026-08-09 � M4: Consensus, ZooKeeper & Raft
+- Decision: Hi?u s�u co ch? �?ng thu?n. Thay v� Polling, d�ng Watch Mechanism c?a ZK d? nh?n Push Notification. Thay v� ZAB ph?c t?p c?a ZK, c�c h? th?ng m?i nhu etcd/Kafka uu ti�n Raft v� n� chia t�ch r� r�ng vi?c B?u Leader (Election) v� Sao ch�p d? li?u (Log Replication), s? d?ng Randomized Timeouts d? b?u nhanh.
+- Trade-off: Thu?t to�n d?ng thu?n d?m b?o an to�n (Total Order Broadcast) nhung Write c?c k? d?t d? v� ph?i d?i Quorum (N/2 + 1). C�c h? th?ng n�y lu�n c?n s? Node l?. Ch? n�n d�ng ZK/etcd d? luu Metadata nh? (file c?u h�nh, service discovery, lock), tuy?t d?i kh�ng d�ng d? luu User Data l?n.
+- Next: K?t th�c tr?n v?n Ch?ng 4 (Chuong 8 & 9 DDIA).
+
+## 2026-08-09 - M3: B-Tree vs LSM-Tree Trade-offs
+- Decision: Hiểu sâu sự khác biệt giữa hai cấu trúc dữ liệu lưu trữ phổ biến. B-Tree tối ưu cho Read bằng Random I/O nhưng chịu Write Amplification lớn (phải ghi lại toàn bộ Page 8KB dù chỉ sửa 1 byte). LSM-Tree tối ưu cho Write bằng Sequential I/O (MemTable -> SSTable) nhưng chịu Read Amplification.
+- Trade-off: LSM-Tree đánh đổi bằng việc bắt CPU/Disk hoạt động liên tục ở background để Compaction (gom SSTable) nhằm dọn rác và giảm Read Amplification. Để khắc phục tốc độ đọc, LSM-Tree phải sử dụng Bloom Filter trên RAM để chặn việc đọc nhầm file.
+- Next: Tiếp tục lý thuyết Hệ quản trị CSDL hoặc thực hành.
+
+## 2026-08-22 - M5: Thực hành Kata Master-Slave Replication Lag
+- Decision: Thiết lập cụm PostgreSQL Primary (Port 5432) và Replica (Port 5433) qua Docker Compose. Sử dụng cấu hình `recovery_min_apply_delay` để tạo độ trễ nhân tạo 5 giây (Replication Lag) để quan sát hiện tượng Data Inconsistency tạm thời.
+- Trade-off: Asynchronous Replication giúp ghi cực nhanh (Primary không cần đợi Replica) và tăng tính High Availability (đọc trên nhiều Replica). Đổi lại, hệ thống phải đối mặt với Stale Read (đọc dữ liệu cũ). Để khắc phục ở tầng Application, có thể áp dụng chiến lược Read-Your-Own-Writes (đọc lại từ Primary trong vài giây đầu sau khi User vừa ghi).
+- Next: Thực hành các kỹ thuật Sharding hoặc phân tích sâu hơn về HA.

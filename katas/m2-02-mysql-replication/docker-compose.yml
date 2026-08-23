@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  primary:
+    image: postgres:15
+    container_name: pg_primary
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: app_db
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432" # Primary accessible on 5432
+    volumes:
+      - ./init-primary.sh:/docker-entrypoint-initdb.d/init.sh
+    command: >
+      postgres 
+      -c wal_level=replica 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10
+      -c hot_standby=on
+
+  replica:
+    image: postgres:15
+    container_name: pg_replica
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      PGPASSWORD: repl_password # Used by pg_basebackup
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432" # Replica accessible on 5433
+    depends_on:
+      - primary
+    volumes:
+      - ./init-replica.sh:/init-replica.sh
+    entrypoint: /bin/bash -c "chmod +x /init-replica.sh && /init-replica.sh"
+
+  pgpool:
+    image: pgpool/pgpool:latest
+    container_name: pg_proxy
+    ports:
+      - "9999:9999" # Spring Boot will connect to localhost:9999
+    environment:
+      - PGPOOL_PARAMS_LISTEN_ADDRESSES=*
+      - PGPOOL_PARAMS_LOAD_BALANCE_MODE=on
+      - PGPOOL_PARAMS_BACKEND_HOSTNAME0=pg_primary
+      - PGPOOL_PARAMS_BACKEND_PORT0=5432
+      - PGPOOL_PARAMS_BACKEND_WEIGHT0=0
+      - PGPOOL_PARAMS_BACKEND_HOSTNAME1=pg_replica
+      - PGPOOL_PARAMS_BACKEND_PORT1=5432
+      - PGPOOL_PARAMS_BACKEND_WEIGHT1=1
+      - PGPOOL_PARAMS_SR_CHECK_USER=admin
+      - PGPOOL_PARAMS_SR_CHECK_PASSWORD=password
+      - PGPOOL_PARAMS_HEALTH_CHECK_USER=admin
+      - PGPOOL_PARAMS_HEALTH_CHECK_PASSWORD=password
+      - APP_USERNAME=admin
+      - APP_PASSWORD=password
+    depends_on:
+      - primary
+      - replica

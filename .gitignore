@@ -3,6 +3,8 @@
 .idea
 # Log file
 *.log
+Designing-Data-Intensive-Applications.md
+Designing-Data-Intensive-Applications.pdf
 
 # BlueJ files
 *.ctxt

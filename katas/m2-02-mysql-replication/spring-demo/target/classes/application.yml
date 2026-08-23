@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    # Proxy Pgpool
+    url: jdbc:postgresql://localhost:9999/app_db
+    username: admin
+    password: password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true

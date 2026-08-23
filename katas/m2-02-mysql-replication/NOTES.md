@@ -51,6 +51,11 @@ Dựng được cụm **1 master + 1 slave** bằng Docker Compose, định tuy�
 - "Khi nào read replica hết tác dụng và bạn phải Partitioning (Shard)?"
 
 ## 8. Ghi chú của tôi *(điền sau khi làm)*
-- **Approach thực tế:**
+- **Approach thực tế:** 
+  - Sử dụng PostgreSQL 15, thiết lập Streaming Replication qua Docker Compose.
+  - Sử dụng tham số `recovery_min_apply_delay = '5s'` trong `postgresql.auto.conf` ở node Replica để tạo độ trễ nhân tạo thay vì dùng Tool giả lập nghẽn mạng.
 - **Kết quả đo / quan sát (lag ~?ms):**
+  - Cố tình tạo lag đúng 5000ms (5 giây).
+  - Khi INSERT dữ liệu trên Primary, lập tức SELECT bên Replica sẽ gặp hiện tượng **Stale Read** (không thấy data). Chính xác sau 5 giây thì dữ liệu mới xuất hiện.
 - **Bài học / điều bất ngờ:**
+  - Nhận thấy rõ ràng rủi ro của Asynchronous Replication. Nếu hệ thống Read-Heavy sử dụng chiến lược này, bắt buộc phải có cơ chế **Read-Your-Own-Writes** ở Application layer (ví dụ: route request của user về Primary trong 10 giây đầu sau khi họ thực hiện Write) để tránh lỗi UX.
