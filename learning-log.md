@@ -133,3 +133,7 @@ Reverse-chronological log of theory-session takeaways (from Cowork/Chat). Writte
 - Decision: Thiết lập cụm PostgreSQL Primary (Port 5432) và Replica (Port 5433) qua Docker Compose. Sử dụng cấu hình `recovery_min_apply_delay` để tạo độ trễ nhân tạo 5 giây (Replication Lag) để quan sát hiện tượng Data Inconsistency tạm thời.
 - Trade-off: Asynchronous Replication giúp ghi cực nhanh (Primary không cần đợi Replica) và tăng tính High Availability (đọc trên nhiều Replica). Đổi lại, hệ thống phải đối mặt với Stale Read (đọc dữ liệu cũ). Để khắc phục ở tầng Application, có thể áp dụng chiến lược Read-Your-Own-Writes (đọc lại từ Primary trong vài giây đầu sau khi User vừa ghi).
 - Next: Thực hành các kỹ thuật Sharding hoặc phân tích sâu hơn về HA.
+## 2026-08-23 - M2: Thực hành Kata Consistent Hashing
+- Decision: Dùng TreeMap trong Java để tạo Hash Ring và băm bằng thuật toán MD5 (cắt 64-bit đầu) nhằm tối ưu phân phối Key. Bắt buộc kết hợp với kỹ thuật Virtual Nodes.
+- Trade-off: Hashing truyền thống (Key % N) chia đều tải tốt nhất (O(1)) nhưng gây thảm họa xáo trộn toàn bộ Cluster khi Scale Up/Down. Consistent Hashing giúp giải quyết bài toán Rebalance (chỉ chuyển 1/N dữ liệu) nhưng đánh đổi bằng việc phân phối tải kém và tốn thêm RAM/CPU O(log(V*N)) để duy trì TreeMap và Virtual Nodes.
+- Next: Ôn tập và chuẩn bị chuyển sang Module tiếp theo.

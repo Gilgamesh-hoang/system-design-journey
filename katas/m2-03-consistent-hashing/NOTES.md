@@ -49,6 +49,18 @@ Tự cài **vòng hash** + **virtual nodes** bằng Java, và **chứng minh b�
 - "Làm sao để xử lý Hot Spots hoặc Skewed Workloads khi một ID có quá nhiều request?"
 
 ## 8. Ghi chú của tôi *(điền sau khi làm)*
-- **Approach thực tế:**
-- **Kết quả đo (độ lệch tải, % rebalance):**
+- **Approach thực tế:** 
+  - Cài đặt vòng tròn hash (Ring) bằng cấu trúc `TreeMap<Long, Node>` của Java để có thể lấy Node tiếp theo trên vòng một cách tự động thông qua hàm `tailMap(hash).firstKey()`.
+  - Thay vì dùng `String.hashCode()` (dễ đụng độ và phân phối kém), tôi đã dùng thuật toán băm mã hóa MD5 cắt lấy 64-bit đầu tiên (`long`) để phân phối key đều hơn trên vòng 64-bit.
+  - Áp dụng "Virtual Nodes" bằng cách thêm hậu tố `#0`, `#1`... vào tên Node trước khi băm, giúp 1 server vật lý xuất hiện V lần trên vòng tròn.
+- **Kết quả đo (độ lệch tải, % rebalance):** (Mô phỏng 1 triệu key)
+  - **Phân phối tải (10 Nodes):**
+    - `hash % N` truyền thống: Phân phối gần như hoàn hảo (Độ lệch chuẩn: 196)
+    - Consistent Hashing (V = 1): Cực kỳ lệch. Node ít nhất nhận 17k key, Node nhiều nhất nhận 226k key (Độ lệch chuẩn: 61,000)
+    - Consistent Hashing (V = 100): Phân phối tốt hơn rất nhiều. Min: 81k, Max: 120k (Độ lệch chuẩn giảm xuống còn 10,654)
+  - **Rebalancing (Thêm 1 Node vào cụm 10 Nodes):**
+    - `hash % N` truyền thống: **90.91%** key bị thay đổi Node (Thảm họa cache miss).
+    - Consistent Hashing (V = 100): Chỉ **8.26%** key bị dịch chuyển (Rất sát với lý thuyết `1/11 ~ 9.09%`).
 - **Bài học / điều bất ngờ:**
+  - Vòng băm nhất quán tự thân nó KHÔNG HỀ chia đều tải như mọi người lầm tưởng. Nếu không dùng Virtual Nodes (V=1), tải sẽ bị lệch thê thảm.
+  - Số lượng Virtual Node càng cao (V=100) thì tải càng đều, nhưng sẽ tốn thêm chi phí bộ nhớ cho TreeMap và thời gian tra cứu `O(log(V*N))` thay vì `O(log(N))`.
